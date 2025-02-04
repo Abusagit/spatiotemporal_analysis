@@ -34,3 +34,6 @@ scipy
 
 jupyter
 ipywidgets
+
+
+networkx
