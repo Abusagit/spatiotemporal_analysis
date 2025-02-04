@@ -9,3 +9,11 @@ conda activate graphs_spt
 pip install -r requirements.txt
 
 ```
+
+
+To install torch, run this command inside jupyter notebook cell:
+
+
+```
+pip install torch==2.4.0
+```
