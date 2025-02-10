@@ -47,6 +47,32 @@ def create_features(number_of_timestamps, graph, nodes_number: int, features: np
     result.append(create_moment_agregated_features(graph, nodes_number, features[i], modes))
   return np.stack(result, axis = 0)
 
+
+
+def normalize(features: np.ndarray, mode: str):
+  new_features = features
+  if features.ndim == 3:
+    axes_to_normalize = (0, 1)
+  else:
+    axes_to_normalize = 0 # type: ignore
+
+  match mode:
+    case 'min-max':
+      minimun = np.min(features, axis=axes_to_normalize, keepdims=True)
+      maximum = np.max(features, axis=axes_to_normalize, keepdims=True)
+      new_features -= minimun
+      new_features /= (maximum - minimun)
+
+    case 'standart':
+      avg = np.average(features, axis=axes_to_normalize, keepdims=True)
+      std = np.std(avg, axis=axes_to_normalize, keepdims=True)
+      new_features -= avg
+      new_features /= std
+
+  return new_features
+
+
+
 if __name__ == "__main__":
   graph = np.array([[0, 0, 0],
                     [1, 0, 0],
