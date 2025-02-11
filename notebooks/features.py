@@ -1,5 +1,7 @@
 import numpy as np
 from tqdm import trange
+import pandas as pd
+
 
 def create_time_features(timestamps, unix_timeseconds, size_of_timestamps: int):
   features = np.zeros(shape=(size_of_timestamps, 9))
@@ -49,7 +51,7 @@ def create_features(number_of_timestamps, graph, nodes_number: int, features: np
 
 
 
-def normalize(features: np.ndarray, mode: str):
+def normalize(features: np.ndarray, mode = 'standart'):
   new_features = np.copy(features)
   if features.ndim == 3:
     axes_to_normalize = (0, 1)
@@ -60,6 +62,8 @@ def normalize(features: np.ndarray, mode: str):
     case 'min-max':
       minimun = np.min(features, axis=axes_to_normalize, keepdims=True)
       maximum = np.max(features, axis=axes_to_normalize, keepdims=True)
+      print(f"minimun: {minimun}")    
+      print(f"minimun: {maximum}") 
       new_features -= minimun
       range_ = maximum - minimun
       range_ = np.where(np.abs(range_ - 0) < 1e-6, 1, range_)
@@ -78,8 +82,92 @@ def normalize(features: np.ndarray, mode: str):
   return new_features
 
 
+from pathlib import Path
+
+
+
+
+def read_dataset_file(path: Path) -> np.lib.npyio.NpzFile:
+    return np.load(file=path, allow_pickle=True)
+
+
+def distr_of_jams(dataset, timestamps,  node, start = 0, end = 288):
+  distribution = np.array([0] * 288)
+  for i in range(start, end):
+      if dataset[i][node] < 15:
+          timestamp_cur = timestamps[i]
+          min_cur = timestamp_cur.hour * 60 + timestamp_cur.minute
+          distribution[min_cur//5]+=1
+  return distribution
+
+
+def jams_propability(dataset, timestamps, node, start = 0, end = 288):
+  distribution = distr_of_jams(dataset, timestamps, node, start, end)
+  distribution_sum = np.sum(distribution)
+  probability = distribution / distribution_sum
+  return probability
+   
+
+def create_all_features(graph, timestamps, target, mode: str, nodes_number = 207):
+  number_of_timestamps = len(timestamps)
+  all_probabilities = np.zeros((nodes_number, 288))
+  for node in range(nodes_number):
+    all_probabilities[node] = jams_propability(target, timestamps, node, 0, number_of_timestamps)
+  
+  print((all_probabilities>0).sum(0))
+
+  probabilities = []
+  for _ in trange(number_of_timestamps // 288):
+    probabilities.append(all_probabilities)
+  
+  all_prob = np.concatenate(probabilities, axis=1).T
+  all_prob = np.nan_to_num(all_prob, 0)
+  print(all_prob.shape)
+  features = target[:, :, None]
+  features = np.nan_to_num(features, 0)
+  print(features.shape)
+
+  features_concatenated_with_jams = np.concatenate([features, all_prob[:, :, None]], axis=-1)
+  print(features_concatenated_with_jams.shape)
+
+  graph_view = np.zeros((nodes_number, nodes_number))
+
+  for node_1, node_2 in graph:
+      graph_view[node_2][node_1] = 1
+
+  features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
+  
+  return features_matrix
+
+
+def create_all_normal_features(graph, mode: str):
+  DATA_DIR = Path("../data/")
+  dataset = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
+  target = dataset['targets']
+  timestamps = pd.date_range(start=dataset["first_timestamp_datetime"].item(),
+                           end=dataset["last_timestamp_datetime"].item(),
+                           freq="5min",
+                           )
+  features = create_all_features(graph, timestamps, target, mode)
+  print(features)
+  return normalize(features, 'min-max')
+
 
 if __name__ == "__main__":
+
+  metr_la = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
+  targets = metr_la['targets']
+  ver_index = 5
+  start = 0
+  end = len(targets)
+
+  timestamps = pd.date_range(start=metr_la["first_timestamp_datetime"].item(),
+                           end=metr_la["last_timestamp_datetime"].item(),
+                           freq="5min",
+                           )
+
+  create_all_features([], timestamps, targets, mode='min')
+
   graph = np.array([[0, 0, 0],
                     [1, 0, 0],
                     [1, 1 ,0]])
@@ -113,3 +201,5 @@ if __name__ == "__main__":
   print(result_multi_timestamps)
   # breakpoint()
   assert np.allclose(result_multi_timestamps, features_multi_ground_truth)
+
+  
