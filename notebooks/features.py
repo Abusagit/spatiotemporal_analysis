@@ -108,7 +108,7 @@ def jams_propability(dataset, timestamps, node, start = 0, end = 288):
   return probability
    
 
-def create_all_features(graph, timestamps, target, mode: str, nodes_number = 207):
+def create_all_features(graph: list[list], timestamps, target, mode: str, nodes_number = 207):
   number_of_timestamps = len(timestamps)
   all_probabilities = np.zeros((nodes_number, 288))
   for node in range(nodes_number):
@@ -139,9 +139,32 @@ def create_all_features(graph, timestamps, target, mode: str, nodes_number = 207
   
   return features_matrix
 
+def region_features():
+  districts = [[0, 13, 36, 37, 51, 54, 58, 61, 62, 67, 111, 112, 114, 115, 116, 117, 118, 140, 142, 143, 145, 190, 194, 199],
+               [1, 2, 7, 11, 18, 21, 27, 28, 35, 46, 50, 55, 66, 78, 79, 85, 92, 105, 106, 107, 108, 121, 123, 126, 132, 135, 177, 189, 200],
+               [3, 4, 5, 6, 12, 15, 16, 17, 19, 20, 22, 29, 30, 32, 33, 38, 39, 40, 48, 57, 65, 68, 70, 71, 74, 80, 91, 93, 94, 96, 97, 98, 102, 103, 119, 127, 128, 136, 138, 144, 154, 155, 157, 159, 160, 161, 162, 163, 166, 175, 187, 188, 191, 192, 193, 195, 196, 198, 205, 206],
+               [8, 14, 34, 59, 77, 84, 88, 89, 104, 151, 182, 185, 186],
+               [9, 41, 86, 87, 100, 130, 131, 146, 148, 150, 172, 180, 181, 197, 204],
+               [10, 31, 83, 90, 99, 122, 149, 156, 176],
+               [23, 25, 49, 56, 64, 95, 101, 109, 120, 124, 125, 129, 133, 134, 139, 147, 165, 170, 174, 183, 184],
+               [24, 42, 44, 45, 53, 110, 152, 153, 167, 168, 169, 171, 173, 178, 179, 201, 202, 203],
+               [43, 47, 52, 60, 63, 69, 72, 73, 75, 76, 81, 82, 113, 137, 141, 158, 164]]
+  
+  district_feature = [[j , i] for i in range(len(districts)) for j in districts[i]] + [[26, -1]]  # for undefined node
+  sorted_district_feature = sorted(district_feature, key=lambda x: x[0])
+  list_district_feature = [i for _, i in sorted_district_feature]
+  enum_district_feature = []
+  for i in range(len(list_district_feature)):
+    enum_district_i = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    district_id = list_district_feature[i]
+    if district_id != -1:
+      enum_district_i[district_id] = 1
+    enum_district_feature.append(enum_district_i)
+  print(enum_district_feature)
+  return np.array(enum_district_feature)
 
-def create_all_normal_features(graph, mode: str):
-  DATA_DIR = Path("../data/")
+def create_all_normal_features(graph: list[list], mode: str):
+  DATA_DIR = Path("./data/")
   dataset = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
   target = dataset['targets']
   timestamps = pd.date_range(start=dataset["first_timestamp_datetime"].item(),
@@ -149,13 +172,25 @@ def create_all_normal_features(graph, mode: str):
                            freq="5min",
                            )
   features = create_all_features(graph, timestamps, target, mode)
-  print(features)
-  return normalize(features, 'min-max')
+  norm_features = normalize(features, 'standart')
+  region_feature = region_features()[None, ...]
+  repeat_region_feature = region_feature.repeat(norm_features.shape[0], axis = 0)
+
+  return np.concatenate([norm_features, repeat_region_feature], axis = -1).astype(np.float32)
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
+  print(region_features())
 
-  metr_la = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
+  create_all_normal_features([], mode='min')
+  """metr_la = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
   targets = metr_la['targets']
   ver_index = 5
   start = 0
@@ -203,3 +238,4 @@ if __name__ == "__main__":
   assert np.allclose(result_multi_timestamps, features_multi_ground_truth)
 
   
+"""
