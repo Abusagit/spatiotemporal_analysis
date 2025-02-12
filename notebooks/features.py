@@ -108,7 +108,7 @@ def jams_propability(dataset, timestamps, node, start = 0, end = 288):
   return probability
    
 
-def create_all_features(graph, timestamps, target, mode: str, nodes_number = 207):
+def create_all_features(graph: list[list], timestamps, target, mode: str, nodes_number = 207):
   number_of_timestamps = len(timestamps)
   all_probabilities = np.zeros((nodes_number, 288))
   for node in range(nodes_number):
@@ -163,7 +163,7 @@ def region_features():
   print(enum_district_feature)
   return np.array(enum_district_feature)
 
-def create_all_normal_features(graph, mode: str):
+def create_all_normal_features(graph: list[list], mode: str):
   DATA_DIR = Path("./data/")
   dataset = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
   target = dataset['targets']
