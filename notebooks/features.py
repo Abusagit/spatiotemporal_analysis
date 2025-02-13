@@ -50,7 +50,6 @@ def create_features(number_of_timestamps, graph, nodes_number: int, features: np
   return np.stack(result, axis = 0)
 
 
-
 def normalize(features: np.ndarray, mode = 'standart'):
   new_features = np.copy(features)
   if features.ndim == 3:
@@ -108,7 +107,7 @@ def jams_propability(dataset, timestamps, node, start = 0, end = 288):
   return probability
    
 
-def create_all_features(graph: list[list], timestamps, target, mode: str, nodes_number = 207):
+def create_all_features(timestamps, target, mode: str, graph = [[]], agregate = True, nodes_number = 207):
   number_of_timestamps = len(timestamps)
   all_probabilities = np.zeros((nodes_number, 288))
   for node in range(nodes_number):
@@ -129,15 +128,17 @@ def create_all_features(graph: list[list], timestamps, target, mode: str, nodes_
 
   features_concatenated_with_jams = np.concatenate([features, all_prob[:, :, None]], axis=-1)
   print(features_concatenated_with_jams.shape)
+  if agregate:
+    graph_view = np.zeros((nodes_number, nodes_number))
 
-  graph_view = np.zeros((nodes_number, nodes_number))
+    for node_1, node_2 in graph:
+        graph_view[node_2][node_1] = 1
 
-  for node_1, node_2 in graph:
-      graph_view[node_2][node_1] = 1
-
-  features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
-  
-  return features_matrix
+    features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
+    
+    return features_matrix
+  else:
+    return features_concatenated_with_jams
 
 def region_features():
   districts = [[0, 13, 36, 37, 51, 54, 58, 61, 62, 67, 111, 112, 114, 115, 116, 117, 118, 140, 142, 143, 145, 190, 194, 199],
