@@ -3,7 +3,8 @@ from tqdm import trange
 import pandas as pd
 
 
-def create_time_features(timestamps, unix_timeseconds, size_of_timestamps: int):
+def create_time_features(timestamps, unix_timeseconds):
+  size_of_timestamps = timestamps.shape[0]
   features = np.zeros(shape=(size_of_timestamps, 9))
   min_time = np.argmin(unix_timeseconds)
   for i, day_idx in enumerate(timestamps.day_of_week):
@@ -107,7 +108,12 @@ def jams_propability(dataset, timestamps, node, start = 0, end = 288):
   return probability
    
 
-def create_all_features(timestamps, target, mode: str, graph = [[]], agregate = True, nodes_number = 207):
+def create_all_features(timestamps, mode: str, target = None, graph = [[]], agregate = True, nodes_number = 207):
+  DATA_DIR = Path("./data/")
+  dataset = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
+  if target == None:
+    target = dataset['targets']
+  unix_timeseconds = dataset['unix_timestamps']
   number_of_timestamps = len(timestamps)
   all_probabilities = np.zeros((nodes_number, 288))
   for node in range(nodes_number):
@@ -136,9 +142,9 @@ def create_all_features(timestamps, target, mode: str, graph = [[]], agregate = 
 
     features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
     
-    return features_matrix
+    return np.concatenate([features_matrix, create_time_features(timestamps, unix_timeseconds)])
   else:
-    return features_concatenated_with_jams
+    return np.concatenate([features_concatenated_with_jams, create_time_features(timestamps, unix_timeseconds)])
 
 def region_features():
   districts = [[0, 13, 36, 37, 51, 54, 58, 61, 62, 67, 111, 112, 114, 115, 116, 117, 118, 140, 142, 143, 145, 190, 194, 199],
