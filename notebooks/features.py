@@ -50,6 +50,7 @@ def create_features(number_of_timestamps, graph, nodes_number: int, features: np
   return np.stack(result, axis = 0)
 
 
+
 def normalize(features: np.ndarray, mode = 'standart'):
   new_features = np.copy(features)
   if features.ndim == 3:
@@ -103,11 +104,12 @@ def distr_of_jams(dataset, timestamps,  node, start = 0, end = 288):
 def jams_propability(dataset, timestamps, node, start = 0, end = 288):
   distribution = distr_of_jams(dataset, timestamps, node, start, end)
   distribution_sum = np.sum(distribution)
-  probability = distribution / distribution_sum
+  distribution_sum = np.where(np.abs(distribution_sum - 0) < 1e-8, 1, distribution_sum)
+  probability = distribution / (distribution_sum + 1e-6)
   return probability
    
 
-def create_all_features(timestamps, target, mode: str, graph = [[]], agregate = True, nodes_number = 207):
+def create_all_features(graph: list[list], timestamps, target, mode: str, nodes_number = 207):
   number_of_timestamps = len(timestamps)
   all_probabilities = np.zeros((nodes_number, 288))
   for node in range(nodes_number):
@@ -128,17 +130,15 @@ def create_all_features(timestamps, target, mode: str, graph = [[]], agregate = 
 
   features_concatenated_with_jams = np.concatenate([features, all_prob[:, :, None]], axis=-1)
   print(features_concatenated_with_jams.shape)
-  if agregate:
-    graph_view = np.zeros((nodes_number, nodes_number))
 
-    for node_1, node_2 in graph:
-        graph_view[node_2][node_1] = 1
+  graph_view = np.zeros((nodes_number, nodes_number))
 
-    features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
-    
-    return features_matrix
-  else:
-    return features_concatenated_with_jams
+  for node_1, node_2 in graph:
+      graph_view[node_2][node_1] = 1
+
+  features_matrix = create_features(len(timestamps), graph_view, 207, features_concatenated_with_jams, ['mean'])
+  
+  return features_matrix
 
 def region_features():
   districts = [[0, 13, 36, 37, 51, 54, 58, 61, 62, 67, 111, 112, 114, 115, 116, 117, 118, 140, 142, 143, 145, 190, 194, 199],
@@ -165,7 +165,7 @@ def region_features():
   return np.array(enum_district_feature)
 
 def create_all_normal_features(graph: list[list], mode: str):
-  DATA_DIR = Path("./data/")
+  DATA_DIR = Path("../data/")
   dataset = np.load(file= DATA_DIR/"metr_la_new.npz", allow_pickle=True)
   target = dataset['targets']
   timestamps = pd.date_range(start=dataset["first_timestamp_datetime"].item(),
@@ -176,14 +176,17 @@ def create_all_normal_features(graph: list[list], mode: str):
   norm_features = normalize(features, 'standart')
   region_feature = region_features()[None, ...]
   repeat_region_feature = region_feature.repeat(norm_features.shape[0], axis = 0)
+  
+  time_features_expanded = create_time_features(
+      timestamps=pd.date_range(start=dataset["first_timestamp_datetime"].item(),
+                              end=dataset["last_timestamp_datetime"].item(),
+                              freq="5min",
+                            ),
+      unix_timeseconds=dataset["unix_timestamps"],
+      size_of_timestamps=dataset["targets"].shape[0]
+  )[:, None, :].repeat(dataset["targets"].shape[1], 1)
 
-  return np.concatenate([norm_features, repeat_region_feature], axis = -1).astype(np.float32)
-
-
-
-
-
-
+  return np.concatenate([norm_features, repeat_region_feature, time_features_expanded], axis = -1).astype(np.float32)
 
 
 
