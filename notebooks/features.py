@@ -3,7 +3,8 @@ from tqdm import trange
 import pandas as pd
 
 
-def create_time_features(timestamps, unix_timeseconds, size_of_timestamps: int):
+def create_time_features(timestamps, unix_timeseconds):
+  size_of_timestamps = timestamps.shape[0]
   features = np.zeros(shape=(size_of_timestamps, 9))
   min_time = np.argmin(unix_timeseconds)
   for i, day_idx in enumerate(timestamps.day_of_week):
